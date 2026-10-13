@@ -38,7 +38,7 @@ both are installed separately.
 which means it cannot be published to npm — GitHub is the distribution channel):
 
 ```sh
-dsh plugin --profile web add github:YOUR-ACCOUNT/dsh-bot-codex-ui
+dsh plugin --profile web add github:Audrey-cn/dsh-bot-codex-ui
 ```
 
 Or from a local checkout:
@@ -88,7 +88,7 @@ dsh-bot-codex-ui/
 
 | Upstream | Version | Relationship |
 |---|---|---|
-| ds-bot | 0.1.4 (vendored, modified) | `ds-bot/` directory |
+| ds-bot | 0.1.5 (vendored, modified) | `ds-bot/` directory |
 | @michengai/dsh-codex-ui | 1.1.36 (unmodified) | npm dependency |
 
 When ds-bot releases a new version, merge the changes into `ds-bot/` and rebuild.

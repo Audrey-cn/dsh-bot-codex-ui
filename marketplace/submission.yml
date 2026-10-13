@@ -1,10 +1,8 @@
 # Submit this file to awesome-dsh-plugin/awesome-dsh-plugin as:
-#   data/plugins/<YOUR-ACCOUNT>__dsh-bot-codex-ui.yml
-#
-# Replace YOUR-ACCOUNT with your GitHub username before submitting.
+#   data/plugins/Audrey-cn__dsh-bot-codex-ui.yml
 
-url: https://github.com/YOUR-ACCOUNT/dsh-bot-codex-ui
-name: YOUR-ACCOUNT/dsh-bot-codex-ui
+url: https://github.com/Audrey-cn/dsh-bot-codex-ui
+name: Audrey-cn/dsh-bot-codex-ui
 category: ui
 description:
   en: "Unified install for DS Bot and the Codex-style sidebar: one package that mounts both and fixes their layout conflicts (composer alignment, sidebar footer, account entry, conversation width)."

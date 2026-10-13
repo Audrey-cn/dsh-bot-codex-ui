@@ -57,7 +57,7 @@ function useMicLevel(enabled) {
   return level
 }
 
-export function VoiceMode({ sessionId, roster, actions, useSessions, useSessionStatus }) {
+export function VoiceMode({ sessionId, roster, actions, useSessions, useSessionStatus, voiceFace }) {
   const bot = roster.byId[sessionId]
   const room = roster.roomsById[sessionId]
   const name = bot?.name ?? room?.name ?? t('Bot')
@@ -67,6 +67,29 @@ export function VoiceMode({ sessionId, roster, actions, useSessions, useSessionS
     const entry = Array.isArray(outline) ? outline[outline.length - 1] : undefined
     return entry ? `${outline.length}|${entry.response ?? ''}` : '0|'
   })
+  // Get full assistant reply text from chat nodes (not the 120-char turnOutline preview)
+  const [fullReplyText, setFullReplyText] = useState('')
+  useEffect(() => {
+    if (!voiceFace) return
+    const face = voiceFace(sessionId)
+    const turnStepsSource = face.keyedHooks.turnSteps
+    const turnCount = lastReply.split('|')[0]
+    if (turnCount === '0') return
+    const dataSource = turnStepsSource(turnCount)
+    if (!dataSource || !dataSource.subscribe) return
+    const updateText = () => {
+      const steps = dataSource.getSnapshot()
+      if (!Array.isArray(steps) || steps.length === 0) return
+      const lastStep = steps[steps.length - 1]
+      const texts = (lastStep?.blocks ?? [])
+        .filter(b => b.kind === 'text' && b.text.trim() !== '')
+        .map(b => b.text)
+      setFullReplyText(texts.join('\n'))
+    }
+    updateText()
+    const unsubscribe = dataSource.subscribe(updateText)
+    return unsubscribe
+  }, [voiceFace, sessionId, lastReply])
   // The Voice Input plugin's Remote, read once: the engine does not change mid-chat.
   const [speech] = useState(() => actions.speech())
   const [phase, setPhase] = useState(speech ? 'starting' : speechApi() ? 'listening' : 'unsupported')
@@ -184,7 +207,7 @@ export function VoiceMode({ sessionId, roster, actions, useSessions, useSessionS
     const [count, text] = [lastReply.slice(0, lastReply.indexOf('|')), lastReply.slice(lastReply.indexOf('|') + 1)]
     if (count === waiting.current || !text.trim()) return
     waiting.current = null
-    const spoken = plainSpeech(text)
+    const spoken = plainSpeech(fullReplyText || text)
     setSaid(spoken)
     setHeard('')
     if (!window.speechSynthesis || !spoken) { setPhase('listening'); return }

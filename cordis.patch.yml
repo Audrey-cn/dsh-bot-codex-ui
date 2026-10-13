@@ -19,7 +19,7 @@
       name: "@michengai/dsh-codex-ui/session-title"
     - id: codex-ui
       name: "@michengai/dsh-codex-ui"
-    # ds-bot (vendored fork with the 10 layout fixes)
+    # ds-bot (vendored fork with the 12 fixes: 10 layout + voice TTS + scroll restore)
     - id: bot
       name: ds-bot
     - id: web-search-auto
