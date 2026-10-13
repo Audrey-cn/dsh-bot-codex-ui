@@ -1,0 +1,67 @@
+dsh-bot-codex-ui
+Copyright 2026 the dsh-bot-codex-ui contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+================================================================================
+Third-party code in this repository
+================================================================================
+
+This package vendors a modified copy of ds-bot and depends on the published
+dsh-codex-ui package. Both are licensed under the Apache License, Version 2.0.
+
+--------------------------------------------------------------------------------
+ds-bot (vendored, modified)
+--------------------------------------------------------------------------------
+  Original project : https://github.com/Fei2411/DeepSeek-Bot
+  License          : Apache License, Version 2.0
+  Copyright        : 2026 Fei2411 and the DS Bot contributors
+  Location in this repo : ds-bot/
+
+  Modifications made in this repository (see the git log for full detail):
+
+    - Composer: restored the shell's official column structure; removed the
+      horizontal-band override and the row-dissolving rule that broke the
+      layout when a second UI plugin was installed.
+    - Sidebar footer: made the footer a single flex row with a locked height,
+      so the mode tabs and the account entry share one line.
+    - Account entry: reduced to a single icon; the name label is hidden (the
+      name remains available in the menu the button opens).
+    - Mode switching: replaced the one-way return pill with a two-tab switcher
+      (Agent / DS Bot) that works in both surfaces.
+    - Plugin panel: moved "Connect plugins" into the account menu; retired the
+      footer button and its standing warning badge.
+    - Conversation width: removed the local pin of --dsh-chat-content-width so
+      the shell's own value applies (the pin made the Bot surface wider than
+      the classic Agent surface).
+
+  The full list of changes is in ds-bot/src/client/ and can be reviewed with
+  git diff against the upstream tag.
+
+--------------------------------------------------------------------------------
+@michengai/dsh-codex-ui (dependency, unmodified)
+--------------------------------------------------------------------------------
+  Original project : https://github.com/MichengAI/dsh-codex-ui
+  License          : Apache License, Version 2.0
+  Copyright        : 2026 MichengAI
+  Location         : installed as a normal npm dependency (not vendored)
+
+  No source code from this project is included in this repository. It is
+  referenced by version in package.json and mounted via cordis.patch.yml.
+
+--------------------------------------------------------------------------------
+DeepSeek Harness
+--------------------------------------------------------------------------------
+  https://github.com/deepseek-ai/deepseek-harness
+  MIT License, Copyright (c) 2026 DeepSeek
+
+  Not included in this repository. Referenced only to say what this plugin
+  works with.
+
+================================================================================
+Trademarks
+================================================================================
+
+"DeepSeek", "DeepSeek Harness", "DS Bot" and "Codex" are trademarks of their
+respective owners. They are used here only to say what this plugin works with.
+No endorsement or affiliation is implied.

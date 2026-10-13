@@ -1,0 +1,35 @@
+# Combined mount: codex-ui + ds-bot (vendored fork with fixes) + our self-check.
+#
+# Replicates the patch files of both upstreams so that neither needs to be
+# listed as a separate bundle. Loading order matters: our entry is last so its
+# self-check runs after everything has mounted.
+
+# --- codex-ui: disable the official sidebar and settings shell ---
+- id: ui-sidebar
+  disabled: true
+- id: ui-settings-general
+  disabled: true
+- id: session-title-llm
+  disabled: true
+
+# --- insert all plugin entries ---
+- insert:
+    # codex-ui
+    - id: michengai-codex-ui-session-title
+      name: "@michengai/dsh-codex-ui/session-title"
+    - id: codex-ui
+      name: "@michengai/dsh-codex-ui"
+    # ds-bot (vendored fork with the 10 layout fixes)
+    - id: bot
+      name: ds-bot
+    - id: web-search-auto
+      name: ds-bot/web-search
+    # our self-check (last, so it sees the fully mounted DOM)
+    - id: bot-codex-ui-fix
+      name: dsh-bot-codex-ui
+
+# --- ds-bot: web search defaults ---
+- id: web
+  config:
+    searchProvider: auto
+    fetchProvider: http

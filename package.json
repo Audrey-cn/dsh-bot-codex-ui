@@ -1,0 +1,53 @@
+{
+  "name": "dsh-bot-codex-ui",
+  "version": "0.1.0",
+  "description": "Unified DSH UI: ds-bot (Bot team) and the Codex-style sidebar in one install, with their layout conflicts fixed.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "src/",
+    "ds-bot/",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "check": "node scripts/build-client.mjs --check"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "dsh",
+    "ui",
+    "unified"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR-ACCOUNT/dsh-bot-codex-ui.git"
+  },
+  "dependencies": {
+    "ds-bot": "file:./ds-bot",
+    "@michengai/dsh-codex-ui": "1.1.36"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  }
+}
