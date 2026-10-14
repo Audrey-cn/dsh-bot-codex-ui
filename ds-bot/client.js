@@ -5465,8 +5465,8 @@ var RETURN_CSS = `
    what still disagreed between the two footers. The name is dropped here: it is
    already shown inside the menu this button opens (settings / contact / sign out),
    so nothing becomes unreachable. Both modes are then a single 36px cell. */
-.dcu-foot>.dcu-settings-seat>*{width:36px!important;min-width:36px!important;min-height:36px!important;height:36px!important;box-sizing:border-box!important;border-radius:10px!important;background:color-mix(in srgb,var(--bt-ink,currentColor) 5%,transparent)!important;color:inherit!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:0!important;padding:0!important;cursor:pointer!important;transition:background-color .12s ease!important}
-.dcu-foot>.dcu-settings-seat>*:hover{background:color-mix(in srgb,var(--bt-ink,currentColor) 10%,transparent)!important}
+.dcu-foot>.dcu-settings-seat:has(.bt-account)>*{width:36px!important;min-width:36px!important;min-height:36px!important;height:36px!important;box-sizing:border-box!important;border-radius:50%!important;background:color-mix(in srgb,var(--bt-ink,currentColor) 5%,transparent)!important;color:inherit!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:0!important;padding:0!important;cursor:pointer!important;transition:background-color 160ms ease!important}
+.dcu-foot>.dcu-settings-seat:has(.bt-account)>*:hover{background:color-mix(in srgb,var(--bt-ink,currentColor) 10%,transparent)!important}
 /* Drop the account name label. The avatar itself stays. */
 .dcu-foot>.dcu-settings-seat [class*="_label"]{display:none!important}
 /* Host trigger: keep the avatar centred; its own grid adds a second column. */
