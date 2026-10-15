@@ -1,0 +1,107 @@
+name: Upstream update check
+
+# Checks daily whether ds-bot or dsh-codex-ui have released versions newer than
+# the ones this plugin is built from. If either has, a single tracking issue is
+# opened (or updated) so the fork never silently falls behind.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # daily at 09:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Check upstream versions
+        id: check
+        run: node scripts/check-upstream.mjs --json > result.json || true
+
+      - name: Report
+        run: cat result.json
+
+      - name: Open or update tracking issue
+        if: hashFiles('result.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, sys
+
+          data = json.load(open('result.json'))
+          ds = data.get('dsBot', {})
+          cx = data.get('codexUi', {})
+          patch = data.get('patch')
+
+          behind = ds.get('behind') or cx.get('behind')
+          lines = []
+          if ds.get('behind'):
+              lines.append(f"- **ds-bot**: `{ds['local']}` → `{ds['latest']}`")
+          if cx.get('behind'):
+              lines.append(f"- **dsh-codex-ui**: `{cx['local']}` → `{cx['latest']}`")
+          if patch is not None:
+              lines.append(f"- **patch applies cleanly**: {'yes' if patch.get('ok') else 'no — manual merge needed'}")
+
+          title = "Upstream updates available"
+          if not behind:
+              # Close the tracking issue if it exists and is open.
+              out = subprocess.run(
+                  ['gh', 'issue', 'list', '--repo', 'Audrey-cn/dsh-bot-codex-ui',
+                   '--search', f'in:title "{title}"', '--state', 'open',
+                   '--json', 'number', '--limit', '1'],
+                  capture_output=True, text=True)
+              try:
+                  issues = json.loads(out.stdout or '[]')
+                  for i in issues:
+                      subprocess.run(['gh', 'issue', 'close', str(i['number']),
+                                      '--repo', 'Audrey-cn/dsh-bot-codex-ui',
+                                      '--comment', 'Both upstreams now match the versions this plugin is built from. Closing.'],
+                                     capture_output=True, text=True)
+              except Exception:
+                  pass
+              print('Both upstreams are up to date.')
+              sys.exit(0)
+
+          body = (
+              "One or both upstreams have released versions newer than what this plugin is built from.\\n\\n"
+              + "\\n".join(lines)
+              + "\\n\\n### What to do\\n"
+              + "\\n1. **ds-bot**: follow the merge procedure in `dsbot-local/SOP.md` (or the repo's CONTRIBUTING).\\n"
+              + "2. **dsh-codex-ui**: bump the dependency and re-verify the layout.\\n\\n"
+              + "_This issue is opened automatically by the upstream update check._"
+          )
+
+          # Reuse one issue instead of spamming.
+          out = subprocess.run(
+              ['gh', 'issue', 'list', '--repo', 'Audrey-cn/dsh-bot-codex-ui',
+               '--search', f'in:title "{title}"', '--state', 'open',
+               '--json', 'number', '--limit', '1'],
+              capture_output=True, text=True)
+          try:
+              issues = json.loads(out.stdout or '[]')
+          except Exception:
+              issues = []
+
+          if issues:
+              num = issues[0]['number']
+              subprocess.run(['gh', 'issue', 'comment', str(num),
+                              '--repo', 'Audrey-cn/dsh-bot-codex-ui',
+                              '--body', body], capture_output=True, text=True)
+              print(f'Updated issue #{num}')
+          else:
+              subprocess.run(['gh', 'issue', 'create',
+                              '--repo', 'Audrey-cn/dsh-bot-codex-ui',
+                              '--title', title,
+                              '--body', body], capture_output=True, text=True)
+              print('Opened new tracking issue')
+          PY

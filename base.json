@@ -1,0 +1,10 @@
+{
+  "dsBot": {
+    "baseVersion": "0.1.4",
+    "baseTag": "v0.1.4",
+    "note": "The git tag v0.1.4's package.json reports 0.1.5; the npm release is 0.1.4. We use the npm release version as the baseline."
+  },
+  "codexUi": {
+    "baseVersion": "1.1.36"
+  }
+}

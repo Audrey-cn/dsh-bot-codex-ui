@@ -1,0 +1,474 @@
+diff --git a/ds-bot/src/client/index.js b/ds-bot/src/client/index.js
+index 203345b..1f7c50a 100644
+--- a/ds-bot/src/client/index.js
++++ b/ds-bot/src/client/index.js
+@@ -6,7 +6,7 @@ import { themeCss, shellTokens, registry, registerShape, registerTheme, allTheme
+ import { MENTION_ORIGIN, currentPart } from './text.js'
+ import { SHELL_CSS, CONVERSATION_CSS, installStyles, installCompiledStyles } from './styles.js'
+ import { lookOf } from './mark.js'
+-import { TeamSidebar, ConnectPlugins, YouAvatar, AccountLauncher, FooterAccount, BrandMark, BrandName, BotReturn, SIDEBAR_CSS, RETURN_CSS, holdShellShortcuts } from './sidebar.js'
++import { TeamSidebar, ConnectPlugins, YouAvatar, AccountLauncher, FooterAccount, BrandMark, BrandName, ModeTabs, SIDEBAR_CSS, RETURN_CSS, holdShellShortcuts } from './sidebar.js'
+ import { HeaderPill } from './header.js'
+ import { ComposerPlus, ComposerVoice, menuIcons } from './composer.js'
+ import { CHATS_SOURCE, atSources } from './at-menu.js'
+@@ -337,6 +337,17 @@ export function apply(ctx) {
+     for (const [id, owner] of pendingAdopt) if (owner === agentId && !ids.includes(id)) ids.push(id)
+     return ids
+   }
++  // Mitigation for the host's broken per-session scroll restore (see ui-chat issue):
++  // after switching Bots, force the conversation to the newest message so the landing
++  // is predictable (always the tail) instead of a stale pixel offset. Logic mirrors
++  // header.js toLatest(): prefer the host's own to-bottom button, else scroll to floor.
++  function scrollConversationToBottom() {
++    const scroller = document.querySelector('[data-conversation-scroll]')
++    if (scroller === null) return
++    const back = scroller.querySelector('[class*="_toBottomSlot"]>button')
++    if (back) back.click()
++    else scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'auto' })
++  }
+   const actions = {
+     // The full-pane overlays sit above the conversation, so opening one must dismiss them
+     // or the click appears to do nothing.
+@@ -349,6 +360,7 @@ export function apply(ctx) {
+       const target = partFor(id)
+       expected = target
+       ctx.uiWorkspace.openSession(target)
++      requestAnimationFrame(() => requestAnimationFrame(() => scrollConversationToBottom()))
+     },
+     // The conversation replacements withdraw for a plain Session; set the surface
+     // before the navigation so the Bot skin never flashes.
+@@ -357,6 +369,7 @@ export function apply(ctx) {
+       setPlain(true)
+       expected = sessionId
+       ctx.uiWorkspace.openSession(sessionId)
++      requestAnimationFrame(() => requestAnimationFrame(() => scrollConversationToBottom()))
+     },
+     addAgent: async () => {
+       const agent = await after(call('add-agent'))
+@@ -416,6 +429,7 @@ export function apply(ctx) {
+       const target = bot && currentPart(bot) !== last.sessionId ? currentPart(bot) : partFor(id)
+       expected = target
+       ctx.uiWorkspace.openSession(target)
++      requestAnimationFrame(() => requestAnimationFrame(() => scrollConversationToBottom()))
+     },
+     selectPanel: (id) => { ctx.layout.selectPanel(id) },
+     openNewChat: (mode) => { ui.set(state => ({ ...state, newChat: mode, menu: null, palette: null })) },
+@@ -714,6 +728,20 @@ export function apply(ctx) {
+     } }
+   }
+ 
++  const voiceFace = (sessionId) => {
++    const binding = ctx.sessions.binding(sessionId)
++    if (binding === undefined) throw new Error(`ds-bot: unknown session "${sessionId}"`)
++    const chat = ctx.uiConversation.binding(binding).target('chat')
++    return { ...face(), keyedHooks: {
++      turnSteps: (turn) => {
++        const snapshot = chat.getSnapshot()
++        if (snapshot === undefined) throw new Error('ds-bot: Chat target is unavailable')
++        return snapshot.nodes.turnDataSource(Number(turn), 'assistant-step')
++      },
++    } }
++  }
++  actions.voiceFace = voiceFace
++
+   const shadow = (name, options, component) => ctx.slots.inject(name, () => ctx.slots.register({ name, ...options }, component))
+ 
+   // The "@" menu's Bot group and the chats "+" references. The composer's controller
+@@ -814,7 +842,10 @@ export function apply(ctx) {
+     const style = installStyles(RETURN_CSS, 'return')
+     return () => style.remove()
+   }, 'ds-bot: return styles')
+-  shadow('sidebar.footer.action', { id: 'bot-return', order: -300, inject: face }, BotReturn)
++  // Registered outside installShell so it survives both surfaces: the two tabs are
++  // the one control that must exist in Agent mode as well, where the shell group is
++  // withdrawn. `data-bt-wide` lets SIDEBAR_CSS stretch the row across the footer.
++  shadow('sidebar.footer.action', { id: 'bot-mode-tabs', order: -300, inject: face }, ModeTabs)
+ 
+   // The main view decides `plain`: a DSH Agent Session keeps the Bot shell but
+   // withdraws the conversation replacements, so the native dsh page shows. A jump
+@@ -883,4 +914,5 @@ export function apply(ctx) {
+       groups.dispose()
+     }
+   }, 'ds-bot: surface')
++
+ }
+diff --git a/ds-bot/src/client/overlays.js b/ds-bot/src/client/overlays.js
+index 3c27a95..6d8c81c 100644
+--- a/ds-bot/src/client/overlays.js
++++ b/ds-bot/src/client/overlays.js
+@@ -43,7 +43,7 @@ export function Overlays({ useRoster, useUi, useSessions, useSessionStatus, useA
+     ui.newChat ? createPortal(h(NewChat, { key: ui.newChat, mode: ui.newChat, roster, actions }), document.body) : null,
+     ui.palette ? createPortal(h(CommandPalette, { key: ui.palette.token, start: ui.palette.query, token: ui.palette.token, roster, actions, useSessions }), document.body) : null,
+     ui.exchange ? createPortal(h(ExchangeDialog, { pair: ui.exchange, roster, actions }), document.body) : null,
+-    ui.voice ? createPortal(h(VoiceMode, { key: ui.voice, sessionId: ui.voice, roster, actions, useSessions, useSessionStatus }), document.body) : null,
++    ui.voice ? createPortal(h(VoiceMode, { key: ui.voice, sessionId: ui.voice, roster, actions, useSessions, useSessionStatus, voiceFace: actions.voiceFace }), document.body) : null,
+     menu ? createPortal(h(ContextMenu, { key: `${menu.kind ?? ''}:${menu.id}:${menu.x}:${menu.y}`, menu, roster, actions, leaving: menuLeaving }), document.body) : null,
+     settings ? createPortal(h(SettingsDialog, { page: settings.page, id: settings.id, roster, actions, useUpdate, leaving: settingsLeaving }), document.body) : null,
+     memory && roster.byId[memory] ? createPortal(h(MemoryDialog, { key: memory, bot: roster.byId[memory], actions, leaving: memoryLeaving }), document.body) : null)
+diff --git a/ds-bot/src/client/sidebar.js b/ds-bot/src/client/sidebar.js
+index 2b3ea08..152e163 100644
+--- a/ds-bot/src/client/sidebar.js
++++ b/ds-bot/src/client/sidebar.js
+@@ -372,36 +372,12 @@ function UpdateButton({ useUpdate, actions }) {
+                 }, dshPhase === 'installing' ? t('Updating…') : dshPhase === 'failed' ? t('Try again') : t('Update')))) : null), document.body) : null)
+ }
+ 
+-// The footer entry to the shell's plugin panel, marked as not yet adapted: the red
+-// badge and a hover tip explain that plugin support lands step by step.
+-export function ConnectPlugins({ wide, actions }) {
+-  const tipId = useId()
+-  const [tip, setTip] = useState(false)
+-  const timer = useRef(0)
+-  const button = useRef(null)
+-  const [box, setBox] = useState(null)
+-  useEffect(() => () => clearTimeout(timer.current), [])
+-  if (!wide) return null
+-  const show = () => {
+-    clearTimeout(timer.current)
+-    timer.current = setTimeout(() => {
+-      const rect = button.current?.getBoundingClientRect()
+-      if (!rect) return
+-      const left = Math.max(8, Math.min(rect.left, window.innerWidth - 268))
+-      setBox({ left, bottom: window.innerHeight - rect.top + 10 })
+-      setTip(true)
+-    }, 250)
+-  }
+-  const hide = () => { clearTimeout(timer.current); setTip(false) }
+-  return h('span', { className: 'bt-connect-wrap' },
+-    h('button', {
+-      ref: button, type: 'button', className: 'bt-connect bt-connect-foot', 'aria-describedby': tip ? tipId : undefined,
+-      onMouseEnter: show, onMouseLeave: hide, onFocus: show, onBlur: hide,
+-      onClick: () => actions.selectPanel('plugins'),
+-    },
+-    h(PlugIcon), t('Connect plugins'), h('span', { className: 'bt-connect-warn', 'aria-hidden': true }, '!')),
+-    tip && box ? createPortal(h('span', { role: 'tooltip', id: tipId, className: 'bt-connect-tip', style: box },
+-      t('Plugin compatibility is not fully verified.')), document.body) : null)
++// The shell's plugin panel used to have a footer button of its own, carrying a
++// standing red "!" that marked plugin support as not yet fully adapted. That entry
++// now lives in the account (whale) menu above, so this component is retired: the
++// sidebar keeps a single footer row, and the warning badge goes with it.
++export function ConnectPlugins() {
++  return null
+ }
+ 
+ // Account seat of the Settings trigger: the visible label stays for assistive tech only.
+@@ -512,6 +488,9 @@ export function AccountLauncher({ seat = true, settingsOpen, openSettings, openO
+     [
+       [t('Usage'), GaugeIcon, () => actions.openSettings('usage')],
+       [t('Connectors'), ConnectorIcon, () => actions.openConnectors()],
++      // The shell's plugin panel now lives here instead of a footer button of its
++      // own, so the sidebar keeps one entry point and no standing warning badge.
++      [t('Connect plugins'), PlugIcon, () => actions.selectPanel('plugins')],
+       [t('Automation tasks'), ClockIcon, () => actions.selectPanel('schedules')],
+       [t('Bot settings'), GearIcon, () => actions.openSettings('general')],
+     ],
+@@ -567,26 +546,97 @@ export function FooterAccount(props) {
+   return h('span', { className: 'bt-foot-account' }, h(AccountLauncher, { ...props, seat: false }))
+ }
+ 
+-// The only entry registered in every mode: in Agent mode the whole Bot surface is
+-// withdrawn, and this button in the shell's own footer is the way back.
+-export function BotReturn({ wide, useSurface, actions }) {
++// The mode switcher. Two peer tabs that fill the sidebar footer's action row: the
++// left one is the classic dsh Agent surface, the right one the DS Bot surface. It
++// replaces the old one-way "DS Bot" return pill, which only existed in Agent mode
++// and left the two modes with different, non-mirrored entry points.
++//
++// It is registered outside `installShell`, exactly like the button it replaces: in
++// Agent mode ds-bot withdraws the whole shell group, so a registration inside it
++// would disappear together with the surface it is meant to walk back to.
++export function ModeTabs({ wide, useSurface, actions }) {
+   const mode = useSurface(value => value.mode)
+-  if (mode !== 'agent') return null
+-  return h('button', { type: 'button', className: 'bt-return', 'aria-label': t('DS Bot'), title: t('DS Bot'), onClick: () => actions.setSurface('bot') },
+-    h(BotMark, { look: MAIN_LOOK, size: 20 }),
+-    wide ? h('span', { className: 'bt-return-name' }, t('DS Bot')) : null)
++  const pick = (next) => { if (next !== mode) actions.setSurface(next) }
++  const tab = (id, label, active, Icon) => h('button', {
++    type: 'button', className: 'bt-mode-tab', 'data-active': active || undefined,
++    'aria-pressed': active, 'aria-label': label, title: label,
++    onClick: () => pick(id),
++  },
++    h(Icon, { size: 16 }),
++    wide ? h('span', { className: 'bt-mode-tab-name' }, label) : null)
++  return h('div', { className: 'bt-mode-tabs', role: 'group', 'aria-label': t('Surface') },
++    tab('agent', t('Agent'), mode === 'agent', FishLogo),
++    tab('bot', t('DS Bot'), mode === 'bot', () => h(BotMark, { look: MAIN_LOOK, size: 16 })))
+ }
+ 
+-// Agent mode has none of the shell-group styles, so the return button carries its own.
++// Agent mode withdraws the shell group that carries the team styles, so the
++// switcher carries its own: two equal halves that span the footer row.
++//
++// 36px is the shell's own control height (its icon buttons and panel rows are both
++// 36), and it is also the account avatar's size, so the tabs, the avatar and the
++// row they share all land on one baseline instead of the tabs floating 2px short.
+ export const RETURN_CSS = `
+-.bt-return{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 14px;border:0;border-radius:999px;background:none;color:inherit;font:inherit;font-size:14px;line-height:20px;cursor:pointer;transition:background-color .12s ease}
+-.bt-return:hover{background:rgba(127,127,127,.14)}
+-.bt-return:active{transform:scale(.96)}
+-.bt-return .bt-mark{display:inline-flex;flex:none;line-height:0}
+-.bt-return .bt-mark svg{width:100%;height:100%;overflow:visible}
++.bt-mode-tabs{display:flex;align-items:center;gap:4px;width:100%;min-width:0;min-height:36px}
++.bt-mode-tab{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:1 1 0;min-width:0;min-height:36px;height:36px;box-sizing:border-box;padding:0 10px;border:0;border-radius:10px;background:transparent;color:inherit;font:inherit;font-size:13px;line-height:18px;cursor:pointer;opacity:.62;transition:background-color .12s ease,opacity .12s ease,transform .12s ease}
++.bt-mode-tab:hover{background:rgba(127,127,127,.14);opacity:1}
++.bt-mode-tab:active{transform:scale(.97)}
++.bt-mode-tab[data-active]{background:rgba(127,127,127,.16);opacity:1;font-weight:500}
++.bt-mode-tab svg{width:16px;height:16px;flex:none}
++.bt-mode-tab .bt-mark{display:inline-flex;flex:none;line-height:0}
++.bt-mode-tab .bt-mark svg{width:100%;height:100%;overflow:visible}
+ /* Shell styles carry --bt-ink-deepseek and Agent mode withdraws them; pin it here. */
+-.bt-return .bt-mark{--bt-ink-deepseek:#4D6BFE}
+-.bt-return-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
++.bt-mode-tab .bt-mark{--bt-ink-deepseek:#4D6BFE}
++.bt-mode-tab-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
++/* The sidebar footer is the SAME LAYOUT in both surfaces: one row holding the
++   mode tabs and the account entry side by side.
++
++   These rules deliberately live in this file rather than SIDEBAR_CSS: SIDEBAR_CSS
++   is injected by installShell and is therefore unloaded in Agent mode, which is
++   exactly the mode that still needed them. This sheet is mounted in both modes. */
++/* ---------------------------------------------------------------------------
++   The sidebar footer is ONE row, in both surfaces.
++
++   The footer that actually renders belongs to the Codex UI sidebar skin, not to
++   the shell's own panel:
++       .dcu-foot{display:grid;width:100%;gap:4px;padding:8px 6px 12px;
++                 border-top:1px solid var(--dcu-sidebar-border)}
++   A grid with no explicit columns is single-column, so its two children — the
++   slot host that carries the mode tabs, and the account/settings seat — stack
++   onto separate lines. That stack is the "two rows" and the reason the Bot
++   footer looked lower and shifted when the surface changed.
++
++   Turning it into one flex row makes both children share a line at a single
++   36px control height, with the divider (border-top) kept from the skin itself.
++   Every property the skin also sets is pinned with !important; the selectors are
++   ds-bot-owned class names, so nothing outside this sidebar is affected.
++--------------------------------------------------------------------------- */
++.dcu-foot{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;height:60px!important;min-height:60px!important;max-height:60px!important;box-sizing:border-box!important;padding:12px 6px!important;border-top:1px solid var(--dcu-sidebar-border,var(--bt-line))!important}
++/* The tabs host takes the remaining width; the account seat keeps its control size. */
++.dcu-foot>.dcu-footer-actions{flex:1 1 auto!important;min-width:0!important;display:flex!important;align-items:center!important;height:36px!important}
++.dcu-foot>.dcu-settings-seat{flex:none!important;width:auto!important;height:36px!important;display:flex!important;align-items:center!important}
++.dcu-foot>.dcu-settings-seat:empty{display:none!important}
++/* The account entry is ONE icon in both surfaces — same treatment, same width.
++
++   Two different components can fill this seat:
++     - Bot mode  : ds-bot's own account button (.bt-you, a 36px round mark)
++     - Agent mode: the host account menu (its trigger is a 36px avatar span
++                   followed by a name label)
++   The label made the Agent-mode block far wider than the Bot-mode icon, which is
++   what still disagreed between the two footers. The name is dropped here: it is
++   already shown inside the menu this button opens (settings / contact / sign out),
++   so nothing becomes unreachable. Both modes are then a single 36px cell. */
++.dcu-foot>.dcu-settings-seat:has(.bt-account)>*{width:36px!important;min-width:36px!important;min-height:36px!important;height:36px!important;box-sizing:border-box!important;border-radius:50%!important;background:color-mix(in srgb,var(--bt-ink,currentColor) 5%,transparent)!important;color:inherit!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:0!important;padding:0!important;cursor:pointer!important;transition:background-color 160ms ease!important}
++.dcu-foot>.dcu-settings-seat:has(.bt-account)>*:hover{background:color-mix(in srgb,var(--bt-ink,currentColor) 10%,transparent)!important}
++/* Drop the account name label. The avatar itself stays. */
++.dcu-foot>.dcu-settings-seat [class*="_label"]{display:none!important}
++/* Host trigger: keep the avatar centred; its own grid adds a second column. */
++.dcu-foot>.dcu-settings-seat>[data-dcu-settings-trigger]{display:flex!important;place-items:initial!important;justify-content:center!important;width:36px!important;padding:0!important}
++.dcu-foot>.dcu-settings-seat>[data-dcu-settings-trigger] svg{width:20px!important;height:20px!important;flex:none!important}
++/* ds-bot's own round avatar keeps its shape; the cell above supplies the strip. */
++.dcu-foot>.dcu-settings-seat .bt-you{box-shadow:none!important;background:none!important}
++/* The tabs split the action row evenly rather than shrinking to their content. */
++.dcu-footer-actions:has(> .bt-mode-tabs){justify-content:stretch!important;width:100%!important;display:flex!important}
++@media (prefers-reduced-motion:reduce){.bt-mode-tab{transition:none}}
+ `
+ 
+ export function BrandMark({ size = 24 }) {
+diff --git a/ds-bot/src/client/styles.js b/ds-bot/src/client/styles.js
+index b538b95..79a1517 100644
+--- a/ds-bot/src/client/styles.js
++++ b/ds-bot/src/client/styles.js
+@@ -112,7 +112,7 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
+ .bt-stack>*+*{margin-left:calc(var(--bt-stack-size) * -.3)}
+ .bt-stack-more{font-size:11px;line-height:16px;color:var(--bt-ink-3);margin-left:3px!important}
+ 
+-.bt-side{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;gap:2px;padding:0 12px 8px 0;color:var(--bt-ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
++.bt-side{display:flex;flex-direction:column;min-height:0;flex:1 1 auto;gap:2px;padding:0 12px 0 0;color:var(--bt-ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+ .bt-side-top{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:6px 5px 0 0}
+ .bt-brand{display:inline-flex;align-items:center;gap:6px;margin-right:auto;padding:4px 8px 4px 4px;border:0;border-radius:8px;background:none;cursor:pointer;font-family:inherit;font-size:15px;line-height:20px;font-weight:600;letter-spacing:-.01em;color:var(--bt-ink);white-space:nowrap}
+ .bt-brand-whale{display:inline-flex;color:var(--bt-accent)}
+@@ -138,15 +138,8 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
+ .bt-unread-wait{background:var(--bt-star)}
+ .bt-rail{align-items:center;padding:0 0 8px}
+ .bt-rail .bt-row{justify-content:center;padding:6px 0;min-height:44px}
+-.bt-side-foot{display:flex;padding-top:8px}
+-.bt-connect{flex:1;height:36px;border-radius:999px;border:1px solid var(--bt-line);background:var(--bt-main);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background-color .12s ease}
+-.bt-connect:hover{background:var(--bt-hover)}
+-.bt-connect svg{flex:none;width:15px;height:15px}
+-.bt-connect-wrap{position:relative;display:flex;flex:1 1 auto;min-width:0}
+-.bt-connect-warn{flex:none;width:16px;height:16px;border-radius:50%;background:#E5484D;color:#fff;font-size:11px;line-height:16px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+-.bt-connect-tip{position:fixed;box-sizing:border-box;width:max-content;max-width:260px;padding:8px 12px;border-radius:10px;background:var(--bt-main);border:.5px solid var(--bt-line-2);box-shadow:0 8px 24px -4px rgba(0,0,0,.14);color:var(--bt-ink);font-size:12px;line-height:17px;white-space:normal;text-align:center;z-index:70;transform-origin:bottom left;animation:bt-tip-in ${SPRING_SHAPE.duration}ms ${SPRING_SHAPE.easing}}
+-@keyframes bt-tip-in{from{opacity:0;transform:scale(.96);filter:blur(4px)}}
+-@media (prefers-reduced-motion:reduce){.bt-connect-tip{animation:none}}
++/* The Connect-plugins footer button is retired: its entry moved into the account
++   (whale) menu, taking the standing red "!" badge with it. */
+ 
+ .bt-head{position:relative;display:flex;justify-content:center;align-items:center;height:40px;flex:none;pointer-events:none}
+ .bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-main);border:.5px solid var(--bt-line-2);box-shadow:0 2px 8px -1px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform ${SPRING_TAP.duration}ms ${SPRING_TAP.easing}}
+@@ -496,11 +489,17 @@ button.bt-set-row:hover{background:var(--bt-hover)}
+ /* Shell chrome reshaped for the team view. Selectors use stable data attributes where the
+    shell offers them and CSS-module name suffixes elsewhere. */
+ [class*="_logoRow"],[class*="_newSession"],nav[class*="_panelList"]{display:none!important}
+-[class*="_footArea"]{display:flex!important;flex-direction:row-reverse;align-items:center;gap:9px;padding:8px 6px 6px!important}
+-[class*="_footArea"]>[class*="_footerActions"]{flex:1 1 auto;min-width:0}
+-[class*="_footArea"]>[class*="_settingsArea"]{flex:none;width:auto!important}
+-[class*="_footArea"] button[aria-label="Settings"]{width:auto!important;padding:0!important;background:none!important;border-radius:50%!important;height:auto!important}
++/* The sidebar footer rules live in RETURN_CSS (sidebar.js): they must apply in
++   BOTH surfaces, and SIDEBAR_CSS is unloaded in Agent mode. */
++/* The shell's own footer box is kept aligned too, for profiles without the skin. */
++[class*="_footArea"]{display:flex!important;flex-direction:row-reverse!important;align-items:center!important;gap:9px;height:60px;min-height:60px;max-height:60px;flex:none!important;box-sizing:border-box;padding:12px 6px!important;position:relative}
++/* The divider above the footer is declared here rather than inherited from whichever
++   surface happens to be mounted, so the rule is identical in Bot and Agent mode and
++   sits at a fixed offset from the sidebar edges. */
+ [class*="_widthHandle"]{display:none!important}
++/* The tabs take the whole action row inside either footer skin, so the two peer
++   tabs split it evenly instead of shrinking to their content. */
++[class*="_footerActions"]:has(> .bt-mode-tabs),
+ 
+ .bt-voice-pane{flex-direction:column;align-items:center;justify-content:center;animation:bt-fade .2s ease-out}
+ .bt-voice-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;max-width:560px;text-align:center}
+@@ -811,9 +810,19 @@ header[class*="_header"]:has(.bt-head){position:absolute!important;top:0;left:0;
+ header[class*="_header"]:has(.bt-head)::before{content:"";position:absolute;inset:0 0 auto;height:60px;background:linear-gradient(to bottom,var(--bt-main),color-mix(in srgb,var(--bt-main) 0%,transparent));pointer-events:none;z-index:-1}
+ header[class*="_header"]:has(.bt-head)>[class*="_headerLeading"]{position:absolute;left:12px;top:10px;pointer-events:auto}
+ header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
+-[class*="_body"]:has(> [class*="_scrollBody"]){--dsh-chat-content-width:min(960px,100%)}
++/* The content width is deliberately NOT pinned here any more.
++
++   ds-bot used to set --dsh-chat-content-width itself (first min(960px,100%), later
++   min(calc(100% - 32px),920px)). Any value it picks is a second source of truth next
++   to the shell's, and the two drifted: measured on screen, the Bot composer card was
++   948pt against the Agent surface's 668pt. Codex UI derives the card from
++   --dsh-composer-card-max-width:calc(var(--dsh-chat-content-width) + 32px), which
++   back-solves the Bot column to 916px — i.e. ds-bot's own pin — while Agent resolves
++   the shell's own value of ~636px.
++
++   With no pin, the Bot surface inherits exactly the same declaration the Agent
++   surface does, so the two cannot disagree. This is subtraction, not another guess. */
+ /* DSH's turn tail keeps what plugins put in it (delivered files, the Bot's separators),
+-   without its copy and branch row; a tail with nothing in it takes no room. */
+ [data-turn-tail]>:not([data-slot="conversation.chat.turnTail"]){display:none!important}
+ [class*="_flowItem"][data-chat-flow-kind="turn-tail"]:not(:has([data-slot="conversation.chat.turnTail"]:not(:empty))){display:none!important}
+ /* Every team Session belongs to a Bot or a group, so a blank one is an empty chat, not
+@@ -861,18 +870,18 @@ header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
+ }
+ @keyframes bt-fade-in{from{opacity:0}to{opacity:1}}
+ @keyframes bt-fade-out{from{opacity:1}to{opacity:0}}
+-[data-composer-card]{display:flex!important;flex-direction:row;flex-wrap:wrap;align-items:center;gap:0!important;min-height:44px;border-radius:22px!important;padding:7.5px!important;box-sizing:border-box;background:var(--bt-main)!important;border:.5px solid var(--bt-line-2)!important;box-shadow:0 2px 8px -1px rgba(0,0,0,.05),0 1px 2px rgba(0,0,0,.03),0 0 0 1px rgba(228,228,228,.04)!important;transition:border-color .15s ease,background-color .15s ease,${spring(SPRING_SHAPE, 'border-radius')}!important}
++/* patched: card geometry left to the official/compat skin */
+ [data-composer-card]:hover,[data-composer-card]:focus-within{border-color:color-mix(in srgb,var(--bt-ink) 30%,transparent)!important}
+ [data-composer-card]:has(> [data-slot="conversation.input.attachments"] *),[data-composer-card]:has([data-composer-input] br + *),[data-composer-card]:has([data-composer-input] > :nth-child(2)){border-radius:18px!important}
+-[class*="_root"]:has(> [data-composer-card]){padding:0 11px 13px 16px!important}
+-[class*="_root"]:has(> [data-composer-card])>[data-composer-card]{max-width:min(992px,100%)!important}
+-[data-composer-card]>[class*="_row"]{display:contents!important}
+-[data-composer-card] [class*="_tools"]{order:1;flex:none;align-self:flex-end;margin:0}
+-[data-composer-card]>[data-input-scroll]{order:2;flex:1 1 0;min-width:0;padding:0 8px!important;margin:0!important}
+-[data-composer-card] [class*="_trailing"]{order:3;flex:none;align-self:flex-end;margin:0}
+-[data-composer-card]>[data-slot="conversation.input.attachments"]{order:0;flex-basis:100%}
+-[data-composer-card] [data-composer-input]{min-height:24px;padding:2px 0!important}
+-[data-composer-card] [data-composer-placeholder]{left:0!important;top:2px!important}
++
++
++
++
++
++
++
++
++
+ [data-composer-placeholder]{font-size:0!important;line-height:0!important}
+ [data-composer-placeholder]::after{content:var(--bt-placeholder,"Message");display:block;font-size:14px;line-height:24px;color:color-mix(in srgb,var(--bt-ink) 36%,transparent)}
+ /* The team's "+" (ComposerPlus) takes the seat of the shell's command-menu button. */
+@@ -883,12 +892,12 @@ header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
+ .bt-plus svg{width:14px;height:14px;transition:${spring(SPRING_POP, 'rotate')}}
+ .bt-plus[aria-expanded=true] svg{rotate:45deg}
+ .bt-plus-menu{min-width:180px}
+-[data-composer-card] [class*="_tools"]{gap:0!important}
++
+ [data-composer-card] [class*="_modes"]:empty{display:none!important}
+ [data-composer-card] [class*="_activity"]:not(:has([data-slot] > *)){display:none!important}
+-[data-composer-card] [class*="_trailing"]{gap:8px}
+-[data-composer-card] [class*="_standardControls"]{display:flex;align-items:center;gap:8px}
+-[data-composer-card] button[class*="_primary"]{width:28px!important;height:28px!important;background:var(--bt-accent)!important;color:var(--bt-accent-ink,#fff)!important;border-radius:50%!important;transition:opacity .15s ease,${spring(SPRING_TAP, 'scale')};animation:bt-icon-swap ${SPRING_POP.duration}ms ${SPRING_POP.easing}}
++
++
++[data-composer-card] button[class*="_primary"]{background:var(--bt-accent)!important;color:var(--bt-accent-ink,#fff)!important;border-radius:50%!important;transition:opacity .15s ease,${spring(SPRING_TAP, 'scale')};animation:bt-icon-swap ${SPRING_POP.duration}ms ${SPRING_POP.easing}}
+ [data-composer-card] button[class*="_primary"]:hover:not(:disabled){opacity:.9}
+ [data-composer-card] button[class*="_primary"]:active:not(:disabled){scale:.9}
+ @keyframes bt-icon-swap{from{opacity:0;transform:scale(.5) rotate(-30deg)}}
+@@ -966,6 +975,23 @@ div:has(> nav [class*="_marks"]){display:none!important}
+ .bt-earlier .bt-event{margin:4px 0}
+ .bt-part-line{display:flex;align-items:center;gap:10px;margin:10px 0 6px;font-size:11px;line-height:14px;color:var(--bt-ink-3)}
+ .bt-part-line::before,.bt-part-line::after{content:"";flex:1;height:1px;background:var(--bt-line)}
++/* [ds-bot-spacing-fix] */
++/* Restore a readable rhythm on the composer's bottom control band.
++   Codex UI compresses .trailing / .standardControls / controls to 4-5px. */
++[data-composer-card] [class*="_trailing"]{gap:10px!important}
++[data-composer-card] [class*="_standardControls"]{gap:10px!important}
++[data-composer-card] [class*="_tools"]{gap:10px!important}
++/* The model trigger is 32px tall against 28px round buttons: give it a little
++   more room so the reasoning-level label never looks glued to the voice button. */
++[data-composer-card] [data-slot="conversation.input.model"],
++[data-composer-card] [data-slot="conversation.input.right"]{min-width:0}
++/* Keep ds-bot's own round buttons optically centred against taller neighbours. */
++[data-composer-card] .bt-mic,
++[data-composer-card] .bt-voice,
++[data-composer-card] .bt-plus{align-self:center}
++/* The saving spinner inside a chip should not push the label against the edge. */
++.bt-model-spin{margin-left:2px}
++/* [/ds-bot-spacing-fix] */
+ `
+ 
+ // -------------------------------------------------------------------------
+diff --git a/ds-bot/src/client/voice.js b/ds-bot/src/client/voice.js
+index d68e6b6..09804da 100644
+--- a/ds-bot/src/client/voice.js
++++ b/ds-bot/src/client/voice.js
+@@ -57,7 +57,7 @@ function useMicLevel(enabled) {
+   return level
+ }
+ 
+-export function VoiceMode({ sessionId, roster, actions, useSessions, useSessionStatus }) {
++export function VoiceMode({ sessionId, roster, actions, useSessions, useSessionStatus, voiceFace }) {
+   const bot = roster.byId[sessionId]
+   const room = roster.roomsById[sessionId]
+   const name = bot?.name ?? room?.name ?? t('Bot')
+@@ -67,6 +67,29 @@ export function VoiceMode({ sessionId, roster, actions, useSessions, useSessionS
+     const entry = Array.isArray(outline) ? outline[outline.length - 1] : undefined
+     return entry ? `${outline.length}|${entry.response ?? ''}` : '0|'
+   })
++  // Get full assistant reply text from chat nodes (not the 120-char turnOutline preview)
++  const [fullReplyText, setFullReplyText] = useState('')
++  useEffect(() => {
++    if (!voiceFace) return
++    const face = voiceFace(sessionId)
++    const turnStepsSource = face.keyedHooks.turnSteps
++    const turnCount = lastReply.split('|')[0]
++    if (turnCount === '0') return
++    const dataSource = turnStepsSource(turnCount)
++    if (!dataSource || !dataSource.subscribe) return
++    const updateText = () => {
++      const steps = dataSource.getSnapshot()
++      if (!Array.isArray(steps) || steps.length === 0) return
++      const lastStep = steps[steps.length - 1]
++      const texts = (lastStep?.blocks ?? [])
++        .filter(b => b.kind === 'text' && b.text.trim() !== '')
++        .map(b => b.text)
++      setFullReplyText(texts.join('\n'))
++    }
++    updateText()
++    const unsubscribe = dataSource.subscribe(updateText)
++    return unsubscribe
++  }, [voiceFace, sessionId, lastReply])
+   // The Voice Input plugin's Remote, read once: the engine does not change mid-chat.
+   const [speech] = useState(() => actions.speech())
+   const [phase, setPhase] = useState(speech ? 'starting' : speechApi() ? 'listening' : 'unsupported')
+@@ -184,7 +207,7 @@ export function VoiceMode({ sessionId, roster, actions, useSessions, useSessionS
+     const [count, text] = [lastReply.slice(0, lastReply.indexOf('|')), lastReply.slice(lastReply.indexOf('|') + 1)]
+     if (count === waiting.current || !text.trim()) return
+     waiting.current = null
+-    const spoken = plainSpeech(text)
++    const spoken = plainSpeech(fullReplyText || text)
+     setSaid(spoken)
+     setHeard('')
+     if (!window.speechSynthesis || !spoken) { setPhase('listening'); return }

@@ -94,6 +94,38 @@ dsh-bot-codex-ui/
 When ds-bot releases a new version, merge the changes into `ds-bot/` and rebuild.
 The layout fixes are in `ds-bot/src/client/`; see the git log for the exact changes.
 
+
+## Upstream update tracking
+
+Both upstreams release very frequently (ds-bot roughly daily, dsh-codex-ui every
+1–2 days), so this plugin can silently fall behind. Two mechanisms prevent that:
+
+### Automated check (GitHub Actions)
+
+A daily workflow runs [`scripts/check-upstream.mjs`](scripts/check-upstream.mjs)
+and opens (or updates) a single tracking issue when either upstream has a newer
+release. If the issue is no longer relevant, it is closed automatically.
+
+### Local check
+
+```sh
+node scripts/check-upstream.mjs                # version check only
+node scripts/check-upstream.mjs --test-patch   # also test the patch on new ds-bot
+node scripts/check-upstream.mjs --json         # machine-readable
+```
+
+`--test-patch` clones the newest ds-bot and attempts to apply
+[`ds-bot-local.patch`](ds-bot-local.patch). If the patch applies cleanly the merge
+is mechanical; if not, a manual merge is needed (see the merge procedure in
+`dsbot-local/SOP.md`).
+
+### Baselines
+
+[`base.json`](base.json) records the upstream release versions this plugin is
+built from. The vendored `ds-bot/package.json` can disagree with the npm release
+(upstream git tags sometimes carry a different version), so `base.json` is the
+authoritative source for the version check.
+
 ## License
 
 Apache-2.0. See `LICENSE` and `NOTICE` for third-party attributions and
