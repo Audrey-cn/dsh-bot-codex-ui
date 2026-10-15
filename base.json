@@ -1,10 +1,9 @@
 {
-  "dsBot": {
-    "baseVersion": "0.1.4",
-    "baseTag": "v0.1.4",
-    "note": "The git tag v0.1.4's package.json reports 0.1.5; the npm release is 0.1.4. We use the npm release version as the baseline."
-  },
+  "baseVersion": "0.1.6",
+  "baseTag": "v0.1.6",
+  "baseCommit": "9411ac3629f4c0494c7963a371dee703c2cfd7aa",
+  "note": "v0.1.6 merged. Upstream fixed the coexistence issue we reported (#127) with SKIN_FOOT + spacing rules; our composer structure and spacing fixes were deleted in favour of upstream's. Our footer (RETURN_CSS), account icon, mode tabs, whale menu and width-unpin fixes are kept. The SKIN_FOOT rules key on .bt-connect-wrap, which this fork retires into the whale menu, so the .dcu-foot rules in RETURN_CSS do the actual work.",
   "codexUi": {
-    "baseVersion": "1.1.36"
+    "baseVersion": "1.1.38"
   }
 }
