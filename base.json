@@ -1,11 +1,14 @@
 {
+  "baseVersion": "0.1.7",
+  "baseTag": "v0.1.7",
+  "baseCommit": "939a6635830cb5b246e7dd19c67b0e1352ad1c07",
   "dsBot": {
-    "baseVersion": "0.1.6",
-    "baseTag": "v0.1.6",
-    "baseCommit": "9411ac3629f4c0494c7963a371dee703c2cfd7aa",
-    "note": "v0.1.6 merged. Upstream fixed the coexistence issue we reported (#127) with SKIN_FOOT + spacing rules; our composer structure and spacing fixes were deleted in favour of upstream's. Our footer (RETURN_CSS), account icon, mode tabs, whale menu and width-unpin fixes are kept. The SKIN_FOOT rules key on .bt-connect-wrap, which this fork retires into the whale menu, so the .dcu-foot rules in RETURN_CSS do the actual work."
+    "baseVersion": "0.1.7",
+    "baseTag": "v0.1.7",
+    "baseCommit": "939a6635830cb5b246e7dd19c67b0e1352ad1c07",
+    "note": "v0.1.7 merged. Adopted upstream BOT_PRIORITY/freePriority slot management and the new grid footer. Kept our voiceFace, footer (RETURN_CSS), account icon, mode tabs, whale menu and width-unpin fixes."
   },
   "codexUi": {
-    "baseVersion": "1.1.38"
+    "baseVersion": "1.1.40"
   }
 }

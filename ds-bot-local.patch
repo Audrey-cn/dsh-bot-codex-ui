@@ -1,5 +1,5 @@
 diff --git a/ds-bot/src/client/index.js b/ds-bot/src/client/index.js
-index 203345b..1f7c50a 100644
+index 8e92c2d..2b39485 100644
 --- a/ds-bot/src/client/index.js
 +++ b/ds-bot/src/client/index.js
 @@ -6,7 +6,7 @@ import { themeCss, shellTokens, registry, registerShape, registerTheme, allTheme
@@ -11,7 +11,7 @@ index 203345b..1f7c50a 100644
  import { HeaderPill } from './header.js'
  import { ComposerPlus, ComposerVoice, menuIcons } from './composer.js'
  import { CHATS_SOURCE, atSources } from './at-menu.js'
-@@ -337,6 +337,17 @@ export function apply(ctx) {
+@@ -339,6 +339,17 @@ export function apply(ctx) {
      for (const [id, owner] of pendingAdopt) if (owner === agentId && !ids.includes(id)) ids.push(id)
      return ids
    }
@@ -29,7 +29,7 @@ index 203345b..1f7c50a 100644
    const actions = {
      // The full-pane overlays sit above the conversation, so opening one must dismiss them
      // or the click appears to do nothing.
-@@ -349,6 +360,7 @@ export function apply(ctx) {
+@@ -351,6 +362,7 @@ export function apply(ctx) {
        const target = partFor(id)
        expected = target
        ctx.uiWorkspace.openSession(target)
@@ -37,7 +37,7 @@ index 203345b..1f7c50a 100644
      },
      // The conversation replacements withdraw for a plain Session; set the surface
      // before the navigation so the Bot skin never flashes.
-@@ -357,6 +369,7 @@ export function apply(ctx) {
+@@ -359,6 +371,7 @@ export function apply(ctx) {
        setPlain(true)
        expected = sessionId
        ctx.uiWorkspace.openSession(sessionId)
@@ -45,18 +45,19 @@ index 203345b..1f7c50a 100644
      },
      addAgent: async () => {
        const agent = await after(call('add-agent'))
-@@ -416,6 +429,7 @@ export function apply(ctx) {
+@@ -418,6 +431,7 @@ export function apply(ctx) {
        const target = bot && currentPart(bot) !== last.sessionId ? currentPart(bot) : partFor(id)
        expected = target
        ctx.uiWorkspace.openSession(target)
 +      requestAnimationFrame(() => requestAnimationFrame(() => scrollConversationToBottom()))
      },
      selectPanel: (id) => { ctx.layout.selectPanel(id) },
-     openNewChat: (mode) => { ui.set(state => ({ ...state, newChat: mode, menu: null, palette: null })) },
-@@ -714,6 +728,20 @@ export function apply(ctx) {
-     } }
-   }
- 
+     toggleSidebar: () => { ctx.layout.toggleSidebar() },
+@@ -725,6 +739,21 @@ export function apply(ctx) {
+   // commonly use and goes below whatever already holds the cell, so a plugin that
+   // shadows the same cell neither breaks the install nor shows through.
+   const BOT_PRIORITY = -100
++
 +  const voiceFace = (sessionId) => {
 +    const binding = ctx.sessions.binding(sessionId)
 +    if (binding === undefined) throw new Error(`ds-bot: unknown session "${sessionId}"`)
@@ -71,10 +72,10 @@ index 203345b..1f7c50a 100644
 +  }
 +  actions.voiceFace = voiceFace
 +
-   const shadow = (name, options, component) => ctx.slots.inject(name, () => ctx.slots.register({ name, ...options }, component))
- 
-   // The "@" menu's Bot group and the chats "+" references. The composer's controller
-@@ -814,7 +842,10 @@ export function apply(ctx) {
+   const shadow = (name, options, component) => ctx.slots.inject(name, () => ctx.slots.register({
+     name, ...options, ...(options.priority === undefined ? {} : { priority: freePriority(ctx.slots.entries(name), options) }),
+   }, component))
+@@ -827,7 +856,10 @@ export function apply(ctx) {
      const style = installStyles(RETURN_CSS, 'return')
      return () => style.remove()
    }, 'ds-bot: return styles')
@@ -86,7 +87,7 @@ index 203345b..1f7c50a 100644
  
    // The main view decides `plain`: a DSH Agent Session keeps the Bot shell but
    // withdraws the conversation replacements, so the native dsh page shows. A jump
-@@ -883,4 +914,5 @@ export function apply(ctx) {
+@@ -898,4 +930,5 @@ export function apply(ctx) {
        groups.dispose()
      }
    }, 'ds-bot: surface')
@@ -106,10 +107,10 @@ index 3c27a95..6d8c81c 100644
      settings ? createPortal(h(SettingsDialog, { page: settings.page, id: settings.id, roster, actions, useUpdate, leaving: settingsLeaving }), document.body) : null,
      memory && roster.byId[memory] ? createPortal(h(MemoryDialog, { key: memory, bot: roster.byId[memory], actions, leaving: memoryLeaving }), document.body) : null)
 diff --git a/ds-bot/src/client/sidebar.js b/ds-bot/src/client/sidebar.js
-index 254d0b8..eaf4b63 100644
+index edb5324..74b86cd 100644
 --- a/ds-bot/src/client/sidebar.js
 +++ b/ds-bot/src/client/sidebar.js
-@@ -371,36 +371,12 @@ function UpdateButton({ useUpdate, actions }) {
+@@ -381,36 +381,12 @@ function UpdateButton({ useUpdate, actions }) {
                  }, dshPhase === 'installing' ? t('Updating…') : dshPhase === 'failed' ? t('Try again') : t('Update')))) : null), document.body) : null)
  }
  
@@ -152,7 +153,7 @@ index 254d0b8..eaf4b63 100644
  }
  
  // Account seat of the Settings trigger: the visible label stays for assistive tech only.
-@@ -511,6 +487,9 @@ export function AccountLauncher({ seat = true, settingsOpen, openSettings, openO
+@@ -521,6 +497,9 @@ export function AccountLauncher({ seat = true, settingsOpen, openSettings, openO
      [
        [t('Usage'), GaugeIcon, () => actions.openSettings('usage')],
        [t('Connectors'), ConnectorIcon, () => actions.openConnectors()],
@@ -162,7 +163,7 @@ index 254d0b8..eaf4b63 100644
        [t('Automation tasks'), ClockIcon, () => actions.selectPanel('schedules')],
        [t('Bot settings'), GearIcon, () => actions.openSettings('general')],
      ],
-@@ -566,26 +545,97 @@ export function FooterAccount(props) {
+@@ -576,26 +555,97 @@ export function FooterAccount(props) {
    return h('span', { className: 'bt-foot-account' }, h(AccountLauncher, { ...props, seat: false }))
  }
  
@@ -276,10 +277,10 @@ index 254d0b8..eaf4b63 100644
  
  export function BrandMark({ size = 24 }) {
 diff --git a/ds-bot/src/client/styles.js b/ds-bot/src/client/styles.js
-index c800f00..bfed2de 100644
+index 6bdeae5..4e1154c 100644
 --- a/ds-bot/src/client/styles.js
 +++ b/ds-bot/src/client/styles.js
-@@ -117,7 +117,7 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
+@@ -118,7 +118,7 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
  .bt-stack>*+*{margin-left:calc(var(--bt-stack-size) * -.3)}
  .bt-stack-more{font-size:11px;line-height:16px;color:var(--bt-ink-3);margin-left:3px!important}
  
@@ -288,7 +289,7 @@ index c800f00..bfed2de 100644
  .bt-side-top{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:6px 5px 0 0}
  .bt-brand{display:inline-flex;align-items:center;gap:6px;margin-right:auto;padding:4px 8px 4px 4px;border:0;border-radius:8px;background:none;cursor:pointer;font-family:inherit;font-size:15px;line-height:20px;font-weight:600;letter-spacing:-.01em;color:var(--bt-ink);white-space:nowrap}
  .bt-brand-whale{display:inline-flex;color:var(--bt-accent)}
-@@ -143,15 +143,8 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
+@@ -144,15 +144,8 @@ body[data-bt-motion=quiet] .bt-mark[data-poke]{cursor:default}
  .bt-unread-wait{background:var(--bt-star)}
  .bt-rail{align-items:center;padding:0 0 8px}
  .bt-rail .bt-row{justify-content:center;padding:6px 0;min-height:44px}
@@ -306,19 +307,15 @@ index c800f00..bfed2de 100644
  
  .bt-head{position:relative;display:flex;justify-content:center;align-items:center;height:40px;flex:none;pointer-events:none}
  .bt-pill{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;height:40px;padding:7.5px 13.5px 7.5px 7.5px;border-radius:999px;background:var(--bt-main);border:.5px solid var(--bt-line-2);box-shadow:0 2px 8px -1px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);color:var(--bt-ink);font-family:inherit;font-size:14px;line-height:20px;cursor:pointer;max-width:70%;box-sizing:border-box;transition:background-color .12s ease,transform ${SPRING_TAP.duration}ms ${SPRING_TAP.easing}}
-@@ -507,14 +500,18 @@ button.bt-set-row:hover{background:var(--bt-hover)}
- /* Shell chrome reshaped for the team view. Selectors use stable data attributes where the
-    shell offers them and CSS-module name suffixes elsewhere. */
- [class*="_logoRow"],[class*="_newSession"],nav[class*="_panelList"]{display:none!important}
--[class*="_footArea"]{display:flex!important;flex-direction:row-reverse;align-items:center;gap:9px;padding:8px 6px 6px!important}
--[class*="_footArea"]>[class*="_footerActions"]{flex:1 1 auto;min-width:0}
--[class*="_footArea"]>[class*="_settingsArea"]{flex:none;width:auto!important}
--[class*="_footArea"] button[aria-label="Settings"]{width:auto!important;padding:0!important;background:none!important;border-radius:50%!important;height:auto!important}
+@@ -530,10 +523,18 @@ html:not([data-windows-titlebar]) [class*="_footArea"],:not([class*="_collapsed"
+ [class*="_footArea"]>[class*="_footerActions"]>div>.bt-connect-wrap{grid-column:2;order:1}
+ [class*="_footArea"]>[class*="_settingsArea"]{grid-column:1;order:1;width:auto!important}
+ [class*="_footArea"] button[aria-label="Settings"]{width:auto!important;padding:0!important;background:none!important;border-radius:50%!important;height:auto!important}
 +/* The sidebar footer rules live in RETURN_CSS (sidebar.js): they must apply in
 +   BOTH surfaces, and SIDEBAR_CSS is unloaded in Agent mode. Upstream's own
-+   SKIN_FOOT rules below are kept, but they key on .bt-connect-wrap, which this
-+   fork retires into the whale menu, so the .dcu-foot rules in RETURN_CSS do the
-+   actual work here. */
++   SKIN_FOOT rules below are kept, but they key on the Connect-plugin wrapper,
++   which this fork retires into the whale menu, so the footer rules in RETURN_CSS
++   do the actual work here. */
  ${SKIN_FOOT}{display:flex!important;flex-direction:row!important;align-items:center!important;gap:9px!important}
  ${SKIN_FOOT}>div:has(> [data-slot="sidebar.footer.action"]){display:flex!important;align-items:center!important;flex:1 1 auto!important;min-width:0!important}
  ${SKIN_FOOT}>div:has(> [data-slot="sidebar.settings"]){order:-1!important;flex:none!important;width:auto!important}
@@ -329,7 +326,7 @@ index c800f00..bfed2de 100644
  
  .bt-voice-pane{flex-direction:column;align-items:center;justify-content:center;animation:bt-fade .2s ease-out}
  .bt-voice-stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;max-width:560px;text-align:center}
-@@ -817,7 +814,18 @@ header[class*="_header"]:has(.bt-head){position:absolute!important;top:0;left:0;
+@@ -839,7 +840,18 @@ header[class*="_header"]:has(.bt-head){position:absolute!important;top:0;left:0;
  header[class*="_header"]:has(.bt-head)::before{content:"";position:absolute;inset:0 0 auto;height:60px;background:linear-gradient(to bottom,var(--bt-main),color-mix(in srgb,var(--bt-main) 0%,transparent));pointer-events:none;z-index:-1}
  header[class*="_header"]:has(.bt-head)>[class*="_headerLeading"]{position:absolute;left:12px;top:10px;pointer-events:auto}
  header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
@@ -349,7 +346,7 @@ index c800f00..bfed2de 100644
  /* The shell writes the column's width on the conversation root at every resize, only to
     derive the content width that the rule above replaces. Inherited, each write restyled
     the whole conversation: once a frame while the details panel glides, most in a long
-@@ -825,7 +833,6 @@ header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
+@@ -847,7 +859,6 @@ header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
  @property --dsh-conversation-column-width{syntax:"*";inherits:false}
  @property --dsh-chat-user-width{syntax:"*";inherits:false}
  /* DSH's turn tail keeps what plugins put in it (delivered files, the Bot's separators),
@@ -357,7 +354,7 @@ index c800f00..bfed2de 100644
  [data-turn-tail]>:not([data-slot="conversation.chat.turnTail"]){display:none!important}
  [class*="_flowItem"][data-chat-flow-kind="turn-tail"]:not(:has([data-slot="conversation.chat.turnTail"]:not(:empty))){display:none!important}
  /* Every team Session belongs to a Bot or a group, so a blank one is an empty chat, not
-@@ -896,7 +903,7 @@ header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
+@@ -918,7 +929,7 @@ header[class*="_header"] .bt-head{flex:1 1 auto;width:100%}
  .bt-plus svg{width:14px;height:14px;transition:${spring(SPRING_POP, 'rotate')}}
  .bt-plus[aria-expanded=true] svg{rotate:45deg}
  .bt-plus-menu{min-width:180px}
@@ -366,7 +363,7 @@ index c800f00..bfed2de 100644
  [data-composer-card] [class*="_modes"]:empty{display:none!important}
  [data-composer-card] [class*="_activity"]:not(:has([data-slot] > *)){display:none!important}
  [data-composer-card] [class*="_trailing"]{gap:8px!important}
-@@ -980,6 +987,23 @@ div:has(> nav [class*="_marks"]){display:none!important}
+@@ -1002,6 +1013,23 @@ div:has(> nav [class*="_marks"]){display:none!important}
  .bt-earlier .bt-event{margin:4px 0}
  .bt-part-line{display:flex;align-items:center;gap:10px;margin:10px 0 6px;font-size:11px;line-height:14px;color:var(--bt-ink-3)}
  .bt-part-line::before,.bt-part-line::after{content:"";flex:1;height:1px;background:var(--bt-line)}
