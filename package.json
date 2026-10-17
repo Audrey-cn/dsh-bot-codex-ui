@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "ds-bot": "file:./ds-bot",
-    "@michengai/dsh-codex-ui": "1.1.40"
+    "@michengai/dsh-codex-ui": "1.1.42"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

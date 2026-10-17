@@ -9,6 +9,6 @@
     "note": "v0.1.7 merged. Adopted upstream BOT_PRIORITY/freePriority slot management and the new grid footer. Kept our voiceFace, footer (RETURN_CSS), account icon, mode tabs, whale menu and width-unpin fixes."
   },
   "codexUi": {
-    "baseVersion": "1.1.40"
+    "baseVersion": "1.1.42"
   }
 }

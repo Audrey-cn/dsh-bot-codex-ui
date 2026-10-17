@@ -126,6 +126,25 @@ built from. The vendored `ds-bot/package.json` can disagree with the npm release
 (upstream git tags sometimes carry a different version), so `base.json` is the
 authoritative source for the version check.
 
+
+## Host compatibility
+
+| DSH host | Status |
+|---|---|
+| `0.2.1-rc.1` / `0.2.1-rc.2` | ✅ supported (codex-ui 1.1.42+) |
+| `0.2.0-rc.1` / `0.2.0-rc.2` | ✅ supported |
+
+`@michengai/dsh-codex-ui` gained official `0.2.1-rc.2` support in **1.1.42**. On
+`0.2.1-rc.2` the Desktop's own account launcher fills the sidebar settings seat,
+so this plugin styles **both** footer shapes (the skin's `.dcu-foot` and the
+shell's `[class*="_footArea"]`) and hides the account name in each — the name
+already lives in the menu the button opens.
+
+Note: `@deepseek-ai/dsh-experimental-inspector` retries a WebSocket to
+`ws://127.0.0.1:9230/ingest` forever when the handshake fails, flooding the
+DevTools console. It is an optional debugging bundle; disable it in the profile
+patch layer if the noise matters.
+
 ## License
 
 Apache-2.0. See `LICENSE` and `NOTICE` for third-party attributions and
