@@ -643,6 +643,29 @@ export const RETURN_CSS = `
 .dcu-foot>.dcu-settings-seat>[data-dcu-settings-trigger] svg{width:20px!important;height:20px!important;flex:none!important}
 /* ds-bot's own round avatar keeps its shape; the cell above supplies the strip. */
 .dcu-foot>.dcu-settings-seat .bt-you{box-shadow:none!important;background:none!important}
+/* ---------------------------------------------------------------------------
+   The HOST's own footer, when the shell sidebar is the outer shell.
+
+   The shell lays this out as a COLUMN: the action row on one line and the
+   settings seat on the next. Collapse it into ONE 60px row with the same rhythm
+   as the skin's footer above, and treat the settings seat as ONE 36px icon cell
+   whatever fills it: ds-bot's own .bt-account, OR the Desktop's official
+   AccountMenu (root > anchor > trigger > avatar + label). The name label is
+   dropped because it already lives inside the menu the button opens, so nothing
+   becomes unreachable.
+
+   This is deliberately NOT gated on .bt-account: since codex-ui 1.1.29 the
+   Desktop puts its own account launcher in this seat, and gating on our class
+   left the official launcher at full width with its name showing.
+--------------------------------------------------------------------------- */
+[class*="_footArea"]{display:flex!important;flex-direction:row!important;align-items:center!important;gap:9px!important;height:60px!important;min-height:60px!important;max-height:60px!important;box-sizing:border-box!important;padding:12px 6px!important}
+[class*="_footArea"]>[class*="_footerActions"]{flex:1 1 auto!important;min-width:0!important;display:flex!important;align-items:center!important;height:36px!important}
+[class*="_footArea"]>[class*="_settingsArea"]{flex:none!important;width:auto!important;height:36px!important;display:flex!important;align-items:center!important}
+[class*="_footArea"]>[class*="_settingsArea"] [class*="_label"]{display:none!important}
+[class*="_footArea"]>[class*="_settingsArea"]>*{flex:none!important;width:36px!important;min-width:36px!important;max-width:36px!important;height:36px!important;min-height:36px!important;max-height:36px!important;padding:0!important;margin:0!important;overflow:hidden!important;box-sizing:border-box!important}
+/* The same treatment where the settings seat is the skin's own box (codex-ui
+   sidebar): the official launcher must be one icon cell there too. */
+.dcu-foot>.dcu-settings-seat>*{flex:none!important;width:36px!important;min-width:36px!important;max-width:36px!important;height:36px!important;min-height:36px!important;max-height:36px!important;padding:0!important;margin:0!important;overflow:hidden!important;box-sizing:border-box!important}
 /* The tabs split the action row evenly rather than shrinking to their content. */
 .dcu-footer-actions:has(> .bt-mode-tabs){justify-content:stretch!important;width:100%!important;display:flex!important}
 @media (prefers-reduced-motion:reduce){.bt-mode-tab{transition:none}}
